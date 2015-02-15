@@ -1,0 +1,47 @@
+<idea-plugin version="2">
+    <id>com.renemaas.intellij.zipper</id>
+    <name>Zipper</name>
+    <version>1.0</version>
+    <vendor email="opensource@renemaas.com" url="http://www.renemaas.com">René Maas Mediengestaltung</vendor>
+
+    <description><![CDATA[
+      Zipper adds the ability to pack the whole project into a single ZIP file.
+      <br>
+      <br>
+      Just choose <em>Menu &gt Tools &gt; Pack the whole Project</em> or press <em>CTRL + SHIFT + P</em>
+    ]]></description>
+
+    <change-notes><![CDATA[
+      <b>1.0</b><br>
+      - Initial Release
+    ]]>
+    </change-notes>
+
+    <!-- please see http://confluence.jetbrains.com/display/IDEADEV/Build+Number+Ranges for description -->
+    <idea-version since-build="121"/>
+
+    <!-- please see http://confluence.jetbrains.com/display/IDEADEV/Plugin+Compatibility+with+IntelliJ+Platform+Products
+         on how to target different products -->
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+    </extensions>
+
+    <application-components>
+        <!-- Add your application components here -->
+    </application-components>
+
+    <project-components>
+        <!-- Add your project components here -->
+    </project-components>
+
+    <actions>
+        <!-- Add your actions here -->
+        <action id="Zipper.ZipProject" class="ZipProject" text="Pack the whole Project" icon="icon.png">
+            <add-to-group group-id="ToolsBasicGroup" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift ctrl P"/>
+        </action>
+    </actions>
+
+</idea-plugin>
