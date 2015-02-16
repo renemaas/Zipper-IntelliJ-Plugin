@@ -14,6 +14,9 @@
     <change-notes><![CDATA[
       <b>1.1</b><br>
       - Added a configuration pane to define excluded directories
+      <br>
+      <br>
+      <b>1.0.1</b><br>
       - Fixed a bug on Unix systems concerning the directory separator
       <br>
       <br>
@@ -30,7 +33,7 @@
     <depends>com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationConfigurable instance="ZipperConfigurable"/>
+        <!--<projectConfigurable instance="ZipperConfigurable"/>-->
     </extensions>
 
     <application-components>
