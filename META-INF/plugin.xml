@@ -1,7 +1,7 @@
 <idea-plugin version="2">
     <id>com.renemaas.intellij.zipper</id>
     <name>Zipper</name>
-    <version>1.0</version>
+    <version>1.1</version>
     <vendor email="opensource@renemaas.com" url="http://www.renemaas.com">René Maas Mediengestaltung</vendor>
 
     <description><![CDATA[
@@ -33,7 +33,7 @@
     <depends>com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <!--<projectConfigurable instance="ZipperConfigurable"/>-->
+        <projectConfigurable instance="ZipperConfigurable"/>
     </extensions>
 
     <application-components>
