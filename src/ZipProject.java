@@ -3,6 +3,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFileManager;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -10,7 +11,7 @@ import java.io.IOException;
 import java.util.zip.ZipOutputStream;
 
 public class ZipProject extends AnAction {
-	public void actionPerformed(AnActionEvent e) {
+	public void actionPerformed(@NotNull AnActionEvent e) {
 		final Project project = e.getProject();
 		assert project != null;
 		final String projectRoot = project.getBasePath() + "\\";
