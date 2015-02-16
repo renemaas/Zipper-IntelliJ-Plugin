@@ -14,7 +14,7 @@ public class ZipProject extends AnAction {
 	public void actionPerformed(@NotNull AnActionEvent e) {
 		final Project project = e.getProject();
 		assert project != null;
-		final String projectRoot = project.getBasePath() + "\\";
+		final String projectRoot = project.getBasePath() + File.separator;
 		final String archiveName = Zipper.showArchiveNameInputDialog();
 		final String archivePath = projectRoot + archiveName + Zipper.FILE_EXTENSION;
 
