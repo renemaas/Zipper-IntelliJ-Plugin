@@ -1,7 +1,7 @@
 <idea-plugin version="2">
     <id>com.renemaas.intellij.zipper</id>
     <name>Zipper</name>
-    <version>1.1</version>
+    <version>1.0.2</version>
     <vendor email="opensource@renemaas.com" url="http://www.renemaas.com">René Maas Mediengestaltung</vendor>
 
     <description><![CDATA[
@@ -12,8 +12,8 @@
     ]]></description>
 
     <change-notes><![CDATA[
-      <b>1.1</b><br>
-      - Added a configuration pane to define excluded directories
+      <b>1.0.2</b><br>
+      - Support for content root outside of the project directory
       <br>
       <br>
       <b>1.0.1</b><br>
@@ -33,7 +33,6 @@
     <depends>com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <projectConfigurable instance="ZipperConfigurable"/>
     </extensions>
 
     <application-components>
