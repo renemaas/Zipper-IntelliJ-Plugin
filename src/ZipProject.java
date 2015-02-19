@@ -52,15 +52,17 @@ public class ZipProject extends AnAction {
 										if (temp.renameTo(new File(archivePath))) {
 											Thread.sleep(50);
 											VirtualFileManager.getInstance().asyncRefresh(null);
-											Notifications.Bus.notify(new Notification("Zipper", "Success", "Project was packed successfully", NotificationType.INFORMATION));
+											Notifications.Bus.notify(new Notification("Zipper", "Success", Zipper.MESSAGE_SUCCESS, NotificationType.INFORMATION));
+										} else {
+											Notifications.Bus.notify(new Notification("Zipper", "Error", Zipper.MESSAGE_ERROR, NotificationType.ERROR));
 										}
 									} catch (IOException e1) {
-										e1.printStackTrace();
+										Notifications.Bus.notify(new Notification("Zipper", "Error", Zipper.MESSAGE_ERROR, NotificationType.ERROR));
 									} catch (InterruptedException e1) {
-										e1.printStackTrace();
+										Notifications.Bus.notify(new Notification("Zipper", "Error", Zipper.MESSAGE_ERROR, NotificationType.ERROR));
 									}
 								} catch (Exception e1) {
-									Notifications.Bus.notify(new Notification("Zipper", "Error", "An error occurred while packing the project", NotificationType.ERROR));
+									Notifications.Bus.notify(new Notification("Zipper", "Error", Zipper.MESSAGE_ERROR, NotificationType.ERROR));
 								}
 
 							}

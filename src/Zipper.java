@@ -12,6 +12,8 @@ public class Zipper {
 
 	public final static String DATE_FORMAT = "yyyy-MM-dd_HH-mm-ss";
 	public final static String FILE_EXTENSION = ".zip";
+	public final static String MESSAGE_SUCCESS = "Project was packed successfully";
+	public final static String MESSAGE_ERROR = "An error occurred while packing the project";
 
 	public static String showArchiveNameInputDialog() {
 		return removeExtensionFromFileName(
