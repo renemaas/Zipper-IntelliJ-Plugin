@@ -1,3 +1,6 @@
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.progress.ProgressManager;
@@ -49,13 +52,15 @@ public class ZipProject extends AnAction {
 										if (temp.renameTo(new File(archivePath))) {
 											Thread.sleep(50);
 											VirtualFileManager.getInstance().asyncRefresh(null);
+											Notifications.Bus.notify(new Notification("Zipper", "Success", "Project was packed successfully", NotificationType.INFORMATION));
 										}
 									} catch (IOException e1) {
 										e1.printStackTrace();
 									} catch (InterruptedException e1) {
 										e1.printStackTrace();
 									}
-								} catch (Exception ignored) {
+								} catch (Exception e1) {
+									Notifications.Bus.notify(new Notification("Zipper", "Error", "An error occurred while packing the project", NotificationType.ERROR));
 								}
 
 							}
