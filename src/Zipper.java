@@ -34,8 +34,10 @@ public class Zipper {
 	}
 
 	public static String removeExtensionFromFileName(String fileName) {
-		if (fileName.substring(fileName.length() - 4).equals(FILE_EXTENSION)) {
-			return fileName.substring(0, fileName.length() - 4);
+		if (fileName != null) {
+			if (fileName.substring(fileName.length() - 4).equals(FILE_EXTENSION)) {
+				return fileName.substring(0, fileName.length() - 4);
+			}
 		}
 		return fileName;
 	}
