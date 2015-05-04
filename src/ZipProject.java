@@ -27,6 +27,8 @@ public class ZipProject extends AnAction {
 
 			if (System.getProperty("os.name").toLowerCase().contains("win")) {
 				contentRoot = contentRoot.replace("file://", "").replace("/", File.separator) + File.separator;
+			} else {
+				contentRoot = contentRoot.replace("file:", "") + File.separator;
 			}
 
 			final String contentDirectory = contentRoot;

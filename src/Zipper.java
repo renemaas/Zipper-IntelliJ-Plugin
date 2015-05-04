@@ -45,6 +45,7 @@ public class Zipper {
 	}
 
 	public static void addDirectoryToZip(File dirObj, ZipOutputStream out, String projectRoot) throws IOException {
+		//dirObj = dirObj.replace("file:", "file://");
 		File[] files = dirObj.listFiles();
 		byte[] tmpBuf = new byte[1024];
 

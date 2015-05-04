@@ -1,7 +1,7 @@
 <idea-plugin version="2">
     <id>com.renemaas.intellij.zipper</id>
     <name>Zipper</name>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
     <vendor email="opensource@renemaas.com" url="http://www.renemaas.com">René Maas Mediengestaltung</vendor>
 
     <description><![CDATA[
@@ -14,6 +14,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+      <b>1.0.4</b><br>
+      - Fixed a bug on Unix systems
+      <br>
+      <br>
       <b>1.0.3</b><br>
       - Fixed NullPointerException when dialog gets canceled<br>
       - Added success and error notifications
