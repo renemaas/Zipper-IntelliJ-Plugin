@@ -15,9 +15,9 @@
 
     <change-notes><![CDATA[
       <b>1.1.0</b><br>
-      - Added support for multiple content roots
-      - Created ZIP files will be ignored when creating a new ZIP file
-      - Some small GUI improvements
+      - Added support for multiple content roots<br>
+      - Created ZIP files will be ignored when creating a new ZIP file<br>
+      - Some small GUI improvements<br>
       - Refactored some code
       <br>
       <br>
