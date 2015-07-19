@@ -1,7 +1,7 @@
 <idea-plugin version="2">
     <id>com.renemaas.intellij.zipper</id>
     <name>Zipper</name>
-    <version>1.0.4</version>
+    <version>1.1.0</version>
     <vendor email="opensource@renemaas.com" url="http://www.renemaas.com">René Maas Mediengestaltung</vendor>
 
     <description><![CDATA[
@@ -14,6 +14,13 @@
     ]]></description>
 
     <change-notes><![CDATA[
+      <b>1.1.0</b><br>
+      - Added support for multiple content roots
+      - Created ZIP files will be ignored when creating a new ZIP file
+      - Some small GUI improvements
+      - Refactored some code
+      <br>
+      <br>
       <b>1.0.4</b><br>
       - Fixed a bug on Unix systems
       <br>
@@ -56,9 +63,9 @@
 
     <actions>
         <!-- Add your actions here -->
-        <action id="Zipper.ZipProject" class="ZipProject" text="Pack the whole Project" icon="icon.png">
+        <action id="Zipper.ZipProject" class="ZipProjectAction" text="Pack the whole Project" icon="icon.png">
             <add-to-group group-id="ToolsBasicGroup" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="shift ctrl P"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift P"/>
         </action>
     </actions>
 
