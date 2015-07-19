@@ -1,3 +1,6 @@
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.wm.WindowManager;
+
 import javax.swing.*;
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,10 +18,10 @@ public class Zipper {
 	public final static String MESSAGE_SUCCESS = "Project was packed successfully";
 	public final static String MESSAGE_ERROR = "An error occurred while packing the project";
 
-	public static String showArchiveNameInputDialog() {
+	public static String showArchiveNameInputDialog(Project project) {
 		return removeExtensionFromFileName(
 				(String) JOptionPane.showInputDialog(
-						null,
+						WindowManager.getInstance().getFrame(project),
 						"Please enter the name of the ZIP archive without extension",
 						"Zipper",
 						JOptionPane.QUESTION_MESSAGE,

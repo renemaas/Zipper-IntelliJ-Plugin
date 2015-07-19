@@ -19,7 +19,7 @@ public class ZipProject extends AnAction {
 	public void actionPerformed(@NotNull AnActionEvent e) {
 		final Project project = e.getProject();
 		assert project != null;
-		final String archiveName = Zipper.showArchiveNameInputDialog();
+		final String archiveName = Zipper.showArchiveNameInputDialog(project);
 
 		if (archiveName != null) {
 			List<String> contentRoots = ProjectRootManager.getInstance(project).getContentRootUrls();
