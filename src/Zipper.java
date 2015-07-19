@@ -47,6 +47,10 @@ public class Zipper {
 		return fileName;
 	}
 
+	public static boolean isWindows() {
+		return System.getProperty("os.name").toLowerCase().contains("win");
+	}
+
 	public static void addDirectoryToZip(File dirObj, ZipOutputStream out, String projectRoot) throws IOException {
 		//dirObj = dirObj.replace("file:", "file://");
 		File[] files = dirObj.listFiles();
