@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -67,7 +66,8 @@ public class ZipProjectAction extends AnAction {
 					for (VirtualFile contentRoot : contentRoots) {
 						Path contentDirectory = contentRoot.toNioPath();
 						try {
-							packContentRoot(contentDirectory, contentDirectory.resolve(archiveFileName), archiveName, ignoredFiles, progressIndicator);
+							progressIndicator.setText2(Zipper.LABEL_PACKING + contentDirectory);
+							Zipper.createArchive(contentDirectory, contentDirectory.resolve(archiveFileName), ignoredFiles, progressIndicator);
 							packedRoots.add(contentRoot);
 						} catch (ProcessCanceledException e1) {
 							throw e1;
@@ -135,19 +135,5 @@ public class ZipProjectAction extends AnAction {
 			}
 		}
 		return ignoredFiles;
-	}
-
-	private static void packContentRoot(Path contentDirectory, Path archivePath, String archiveName, Set<String> ignoredFiles, ProgressIndicator progressIndicator) throws IOException {
-		progressIndicator.setText2(Zipper.LABEL_PACKING + contentDirectory);
-		Path tempFile = Files.createTempFile(archiveName, Zipper.FILE_EXTENSION);
-		try {
-			Zipper.createArchive(contentDirectory, tempFile, ignoredFiles, progressIndicator);
-			progressIndicator.checkCanceled();
-			progressIndicator.setText2(Zipper.LABEL_SAVING + archivePath);
-			// Falls back to copy + delete if the temp dir is on another file system
-			Files.move(tempFile, archivePath, StandardCopyOption.REPLACE_EXISTING);
-		} finally {
-			Files.deleteIfExists(tempFile);
-		}
 	}
 }

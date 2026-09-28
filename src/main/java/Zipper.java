@@ -35,11 +35,11 @@ public class Zipper {
 	public final static String MESSAGE_ERROR = "An error occurred while packing the project";
 	public final static String MESSAGE_PACKING_PROJECT = "Project is being packed";
 	public final static String LABEL_PACKING = "Packing: ";
-	public final static String LABEL_SAVING = "Saving: ";
 	public final static String IGNORE_FILE = ".zipper";
 	public final static String NOTIFICATION_GROUP = "Zipper";
 
 	private static final int COMPRESSION_LEVEL = 4;
+	private static final String TEMP_FILE_PREFIX = ".zipper-";
 	private static final String INVALID_NAME_CHARACTERS = "/\\:*?\"<>|";
 	private static final Set<String> COMPRESSED_EXTENSIONS = new HashSet<String>(Arrays.asList(
 			"zip", "jar", "war", "ear", "apk", "gz", "tgz", "bz2", "xz", "7z", "rar", "zst",
@@ -129,7 +129,11 @@ public class Zipper {
 
 		ExecutorService executor = createCompressionExecutor();
 		final Path scatterDirectory = Files.createTempDirectory("zipper");
+		Path tempFile = null;
 		try {
+			// Next to the archive, so saving is a rename instead of a copy across drives.
+			// Created after collecting the files, so it cannot end up in its own archive
+			tempFile = Files.createTempFile(archiveFile.toAbsolutePath().getParent(), TEMP_FILE_PREFIX, ".tmp");
 			ParallelScatterZipCreator creator = new ParallelScatterZipCreator(
 					executor,
 					() -> new FileBasedScatterGatherBackingStore(Files.createTempFile(scatterDirectory, "scatter", ".tmp")),
@@ -139,9 +143,11 @@ public class Zipper {
 				final Path file = files.get(i);
 				creator.addArchiveEntry(entries.get(i), () -> openCancelable(file, progressIndicator));
 			}
-			try (ZipArchiveOutputStream zipOutputStream = new ZipArchiveOutputStream(archiveFile)) {
+			try (ZipArchiveOutputStream zipOutputStream = new ZipArchiveOutputStream(tempFile)) {
 				creator.writeTo(zipOutputStream);
 			}
+			progressIndicator.checkCanceled();
+			moveReplacing(tempFile, archiveFile);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			throw new InterruptedIOException("Packing was interrupted");
@@ -163,6 +169,17 @@ public class Zipper {
 				Thread.currentThread().interrupt();
 			}
 			FileUtil.delete(scatterDirectory);
+			if (tempFile != null) {
+				Files.deleteIfExists(tempFile);
+			}
+		}
+	}
+
+	private static void moveReplacing(Path source, Path target) throws IOException {
+		try {
+			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+		} catch (AtomicMoveNotSupportedException e) {
+			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
 		}
 	}
 
@@ -173,8 +190,8 @@ public class Zipper {
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
 				progressIndicator.checkCanceled();
 				String fileName = file.getFileName().toString();
-				// Skips broken links, sockets and pipes
-				if (!attributes.isRegularFile() || ignoredFiles.contains(fileName)) {
+				// Skips broken links, sockets, pipes and temp files left behind by an aborted run
+				if (!attributes.isRegularFile() || ignoredFiles.contains(fileName) || isTempFile(fileName)) {
 					return FileVisitResult.CONTINUE;
 				}
 				ZipArchiveEntry entry = new ZipArchiveEntry(contentRoot.relativize(file).toString().replace(File.separatorChar, '/'));
@@ -221,6 +238,10 @@ public class Zipper {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	private static boolean isTempFile(String fileName) {
+		return fileName.startsWith(TEMP_FILE_PREFIX) && fileName.endsWith(".tmp");
 	}
 
 	private static boolean isCompressed(String fileName) {

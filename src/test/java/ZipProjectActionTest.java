@@ -59,6 +59,7 @@ public class ZipProjectActionTest extends HeavyPlatformTestCase {
 		write("src/Main.java", "class Main {}");
 		write("assets/image.png", "png");
 		write("backup.zip", "previous archive");
+		write(".zipper-aborted.tmp", "left behind by an aborted run");
 		Files.createSymbolicLink(root.resolve("src/loop"), root.resolve("src"));
 		Files.createSymbolicLink(root.resolve("broken"), root.resolve("does-not-exist"));
 		addContentRoot(root);
@@ -68,6 +69,10 @@ public class ZipProjectActionTest extends HeavyPlatformTestCase {
 		Map<String, String> entries = readZip(root.resolve("backup.zip"));
 		assertEquals(new TreeSet<String>(Arrays.asList("a.txt", "src/Main.java", "assets/image.png")), entries.keySet());
 		assertEquals("class Main {}", entries.get("src/Main.java"));
+		// Only the stale temp file remains, the one of this run was renamed to the archive
+		try (java.util.stream.Stream<Path> children = Files.list(root)) {
+			assertEquals(1, children.filter(p -> p.getFileName().toString().startsWith(".zipper-")).count());
+		}
 		assertSingleNotification(NotificationType.INFORMATION);
 	}
 
