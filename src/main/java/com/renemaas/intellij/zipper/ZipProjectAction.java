@@ -1,3 +1,6 @@
+package com.renemaas.intellij.zipper;
+
+import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.progress.ProgressIndicator;
@@ -15,9 +18,22 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipOutputStream;
 
 public class ZipProjectAction extends AnAction {
+	@Override
+	public @NotNull ActionUpdateThread getActionUpdateThread() {
+		return ActionUpdateThread.BGT;
+	}
+
+	@Override
+	public void update(@NotNull AnActionEvent e) {
+		e.getPresentation().setEnabled(e.getProject() != null);
+	}
+
+	@Override
 	public void actionPerformed(@NotNull AnActionEvent e) {
 		final Project project = e.getProject();
-		assert project != null;
+		if (project == null) {
+			return;
+		}
 		final String archiveName = Zipper.showArchiveNameInputDialog(project);
 		final String ignoreFile = project.getBasePath() + File.separator + ".idea" + File.separator + Zipper.IGNORE_FILE;
 
@@ -29,7 +45,7 @@ public class ZipProjectAction extends AnAction {
 				Zipper.addArchiveToIgnoreList(ignoreFile, archiveName + Zipper.FILE_EXTENSION);
 				ignoredFiles = Zipper.getIgnoredFiles(ignoreFile);
 			} catch (IOException e1) {
-				Zipper.throwError();
+				Zipper.throwError(project);
 			}
 
 			final String[] finalIgnoredFiles = ignoredFiles;
@@ -59,16 +75,16 @@ public class ZipProjectAction extends AnAction {
 									if (tempFile.renameTo(new File(archivePath))) {
 										archivesCreated++;
 									} else {
-										Zipper.throwError();
+										Zipper.throwError(project);
 									}
 								}
 								if (archivesCreated == contentRootsSize) {
 									VirtualFileManager.getInstance().asyncRefresh(null);
 									String execTime = TimeUnit.MILLISECONDS.toSeconds((System.currentTimeMillis() - startTime)) + "s";
-									Zipper.throwSuccess(execTime);
+									Zipper.throwSuccess(project, execTime);
 								}
 							} catch (Exception e1) {
-								Zipper.throwError();
+								Zipper.throwError(project);
 							}
 						}
 					},

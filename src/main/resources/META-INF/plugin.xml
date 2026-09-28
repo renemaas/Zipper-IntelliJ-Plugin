@@ -1,7 +1,6 @@
-<idea-plugin version="2">
+<idea-plugin>
     <id>com.renemaas.intellij.zipper</id>
     <name>Zipper</name>
-    <version>1.1.0</version>
     <vendor email="opensource@renemaas.com" url="http://www.renemaas.com">René Maas Mediengestaltung</vendor>
 
     <description><![CDATA[
@@ -14,6 +13,12 @@
     ]]></description>
 
     <change-notes><![CDATA[
+      <b>1.2.0</b><br>
+      - Updated for IntelliJ IDEA 2026.2 (compatible with 2025.1 and newer)<br>
+      - Migrated build to Gradle and the IntelliJ Platform Gradle Plugin 2.x<br>
+      - Replaced deprecated notification and action APIs
+      <br>
+      <br>
       <b>1.1.0</b><br>
       - Added support for multiple content roots<br>
       - Created ZIP files will be ignored when creating a new ZIP file<br>
@@ -43,27 +48,15 @@
     ]]>
     </change-notes>
 
-    <!-- please see http://confluence.jetbrains.com/display/IDEADEV/Build+Number+Ranges for description -->
-    <idea-version since-build="121"/>
-
-    <!-- please see http://confluence.jetbrains.com/display/IDEADEV/Plugin+Compatibility+with+IntelliJ+Platform+Products
-         on how to target different products -->
     <depends>com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Zipper" displayType="BALLOON"/>
     </extensions>
 
-    <application-components>
-        <!-- Add your application components here -->
-    </application-components>
-
-    <project-components>
-        <!-- Add your project components here -->
-    </project-components>
-
     <actions>
-        <!-- Add your actions here -->
-        <action id="Zipper.ZipProject" class="ZipProjectAction" text="Pack the whole Project" icon="icon.png">
+        <action id="Zipper.ZipProject" class="com.renemaas.intellij.zipper.ZipProjectAction"
+                text="Pack the whole Project" icon="/icons/zipper.png">
             <add-to-group group-id="ToolsBasicGroup" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift P"/>
         </action>

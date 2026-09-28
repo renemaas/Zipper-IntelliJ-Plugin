@@ -1,6 +1,7 @@
-import com.intellij.notification.Notification;
+package com.renemaas.intellij.zipper;
+
+import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
-import com.intellij.notification.Notifications;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.WindowManager;
 
@@ -71,12 +72,19 @@ public class Zipper {
 		return contentRoot;
 	}
 
-	public static void throwError() {
-		Notifications.Bus.notify(new Notification(Zipper.TITLE, Zipper.TITLE_ERROR, Zipper.MESSAGE_ERROR, NotificationType.ERROR));
+	public static void throwError(Project project) {
+		notify(project, Zipper.TITLE_ERROR, Zipper.MESSAGE_ERROR, NotificationType.ERROR);
 	}
 
-	public static void throwSuccess(String execTime) {
-		Notifications.Bus.notify(new Notification(Zipper.TITLE, Zipper.TITLE_SUCCESS, Zipper.MESSAGE_SUCCESS + execTime, NotificationType.INFORMATION));
+	public static void throwSuccess(Project project, String execTime) {
+		notify(project, Zipper.TITLE_SUCCESS, Zipper.MESSAGE_SUCCESS + execTime, NotificationType.INFORMATION);
+	}
+
+	private static void notify(Project project, String title, String content, NotificationType type) {
+		NotificationGroupManager.getInstance()
+				.getNotificationGroup(Zipper.TITLE)
+				.createNotification(title, content, type)
+				.notify(project);
 	}
 
 	public static String[] getIgnoredFiles(String filePath) throws IOException {

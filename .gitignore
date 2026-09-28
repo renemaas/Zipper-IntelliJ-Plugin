@@ -48,3 +48,9 @@ crashlytics.properties
 crashlytics-build.properties
 
 
+
+# Gradle / IntelliJ Platform Gradle Plugin
+.gradle/
+build/
+.intellijPlatform/
+.kotlin/
