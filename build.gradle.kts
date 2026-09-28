@@ -1,3 +1,6 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+
 plugins {
     java
     id("org.jetbrains.intellij.platform") version "2.19.0"
@@ -20,8 +23,13 @@ repositories {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.opentest4j:opentest4j:1.3.0")
+
     intellijPlatform {
         intellijIdeaCommunity(providers.gradleProperty("platformVersion"))
+        pluginVerifier()
+        testFramework(TestFrameworkType.Platform)
     }
 }
 
@@ -34,6 +42,13 @@ intellijPlatform {
         }
     }
     buildSearchableOptions = false
+    pluginVerification {
+        // Plugin ID is already published on the Marketplace and cannot change
+        freeArgs = listOf("-mute", "TemplateWordInPluginId")
+        ides {
+            create(IntelliJPlatformType.IntellijIdeaCommunity, providers.gradleProperty("platformVersion"))
+        }
+    }
 }
 
 tasks.withType<JavaCompile> {
