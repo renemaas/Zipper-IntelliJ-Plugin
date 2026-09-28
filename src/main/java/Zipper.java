@@ -6,12 +6,17 @@ import com.intellij.openapi.wm.WindowManager;
 
 import javax.swing.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -28,6 +33,14 @@ public class Zipper {
 	public final static String LABEL_PACKING = "Packing: ";
 	public final static String LABEL_SAVING = "Saving: ";
 	public final static String IGNORE_FILE = ".zipper";
+
+	private static final int BUFFER_SIZE = 64 * 1024;
+	private static final Set<String> COMPRESSED_EXTENSIONS = new HashSet<String>(Arrays.asList(
+			"zip", "jar", "war", "ear", "apk", "gz", "tgz", "bz2", "xz", "7z", "rar", "zst",
+			"png", "jpg", "jpeg", "gif", "webp", "avif", "heic",
+			"mp3", "mp4", "m4a", "mov", "avi", "mkv", "webm", "ogg", "flac",
+			"woff", "woff2", "docx", "xlsx", "pptx", "odt", "ods", "odp"
+	));
 
 	public static String showArchiveNameInputDialog(Project project) {
 		return removeExtensionFromFileName(
@@ -79,44 +92,58 @@ public class Zipper {
 		Notifications.Bus.notify(new Notification(Zipper.TITLE, Zipper.TITLE_SUCCESS, Zipper.MESSAGE_SUCCESS + execTime, NotificationType.INFORMATION));
 	}
 
-	public static String[] getIgnoredFiles(String filePath) throws IOException {
-		FileReader fileReader = new FileReader(filePath);
-		BufferedReader bufferedReader = new BufferedReader(fileReader);
-		List<String> lines = new ArrayList<String>();
-		String line;
-		while ((line = bufferedReader.readLine()) != null) {
-			lines.add(line);
-		}
-		bufferedReader.close();
-		return lines.toArray(new String[lines.size()]);
+	public static Set<String> getIgnoredFiles(String filePath) throws IOException {
+		return new HashSet<String>(Files.readAllLines(Paths.get(filePath), StandardCharsets.UTF_8));
 	}
 
 	public static void addArchiveToIgnoreList(String filePath, String s) throws IOException {
-		FileWriter writer = new FileWriter(filePath, true);
-		writer.write(s + "\n");
-		writer.close();
+		try (Writer writer = new OutputStreamWriter(new FileOutputStream(filePath, true), StandardCharsets.UTF_8)) {
+			writer.write(s + "\n");
+		}
 	}
 
-	public static void addDirectoryToZip(File contentDirectoryObject, ZipOutputStream zipOutputStream, String contentRoot, String[] ignoredFiles) throws IOException {
-		File[] files = contentDirectoryObject.listFiles();
-		byte[] tmpBuf = new byte[1024];
+	public static void createArchive(File contentDirectoryObject, File archiveFile, Set<String> ignoredFiles) throws IOException {
+		// Normalized path, the raw content root URL may contain duplicate separators
+		String contentRoot = contentDirectoryObject.getAbsolutePath();
+		if (!contentRoot.endsWith(File.separator)) {
+			contentRoot += File.separator;
+		}
+		try (ZipOutputStream zipOutputStream = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(archiveFile), BUFFER_SIZE))) {
+			addDirectoryToZip(contentDirectoryObject, zipOutputStream, contentRoot, ignoredFiles, new byte[BUFFER_SIZE]);
+		}
+	}
 
-		assert files != null;
+	private static void addDirectoryToZip(File contentDirectoryObject, ZipOutputStream zipOutputStream, String contentRoot, Set<String> ignoredFiles, byte[] buffer) throws IOException {
+		File[] files = contentDirectoryObject.listFiles();
+		if (files == null) {
+			throw new IOException("Cannot read directory " + contentDirectoryObject);
+		}
+
 		for (File file : files) {
 			if (file.isDirectory()) {
-				addDirectoryToZip(file, zipOutputStream, contentRoot, ignoredFiles);
+				addDirectoryToZip(file, zipOutputStream, contentRoot, ignoredFiles, buffer);
 				continue;
 			}
-			if (!Arrays.asList(ignoredFiles).contains(file.getName())) {
-				FileInputStream fileInputStream = new FileInputStream(file.getAbsolutePath());
-				zipOutputStream.putNextEntry(new ZipEntry(file.getAbsolutePath().replace(contentRoot, "")));
-				int length;
-				while ((length = fileInputStream.read(tmpBuf)) > 0) {
-					zipOutputStream.write(tmpBuf, 0, length);
-				}
-				zipOutputStream.closeEntry();
-				fileInputStream.close();
+			String fileName = file.getName();
+			if (ignoredFiles.contains(fileName)) {
+				continue;
 			}
+			// Deflating already compressed data costs CPU and gains nothing
+			zipOutputStream.setLevel(isCompressed(fileName) ? Deflater.NO_COMPRESSION : Deflater.DEFAULT_COMPRESSION);
+			String entryName = file.getAbsolutePath().substring(contentRoot.length()).replace(File.separatorChar, '/');
+			zipOutputStream.putNextEntry(new ZipEntry(entryName));
+			try (InputStream inputStream = new FileInputStream(file)) {
+				int length;
+				while ((length = inputStream.read(buffer)) > 0) {
+					zipOutputStream.write(buffer, 0, length);
+				}
+			}
+			zipOutputStream.closeEntry();
 		}
+	}
+
+	private static boolean isCompressed(String fileName) {
+		int dot = fileName.lastIndexOf('.');
+		return dot >= 0 && COMPRESSED_EXTENSIONS.contains(fileName.substring(dot + 1).toLowerCase(Locale.ROOT));
 	}
 }
