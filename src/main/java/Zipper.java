@@ -4,7 +4,7 @@ import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.InputValidator;
 import com.intellij.openapi.ui.Messages;
-import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.NioFiles;
 import org.apache.commons.compress.archivers.zip.ParallelScatterZipCreator;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
@@ -168,7 +168,11 @@ public class Zipper {
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 			}
-			FileUtil.delete(scatterDirectory);
+			try {
+				NioFiles.deleteRecursively(scatterDirectory);
+			} catch (IOException ignored) {
+				// Best effort, a leftover in the system temp directory must not fail the packing
+			}
 			if (tempFile != null) {
 				Files.deleteIfExists(tempFile);
 			}

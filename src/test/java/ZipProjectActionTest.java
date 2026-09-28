@@ -5,7 +5,7 @@ import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ui.TestDialogManager;
 import com.intellij.openapi.ui.TestInputDialog;
-import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.NioFiles;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.HeavyPlatformTestCase;
@@ -48,7 +48,7 @@ public class ZipProjectActionTest extends HeavyPlatformTestCase {
 	protected void tearDown() throws Exception {
 		try {
 			TestDialogManager.setTestInputDialog(TestInputDialog.DEFAULT);
-			FileUtil.delete(root);
+			NioFiles.deleteRecursively(root);
 		} finally {
 			super.tearDown();
 		}

@@ -49,6 +49,9 @@ intellijPlatform {
         freeArgs = listOf("-mute", "TemplateWordInPluginId")
         ides {
             create(IntelliJPlatformType.IntellijIdeaCommunity, providers.gradleProperty("platformVersion"))
+            // Last Community release, since 2025.3 IntelliJ IDEA ships as one product
+            create(IntelliJPlatformType.IntellijIdeaCommunity, "2025.2.6.3")
+            create(IntelliJPlatformType.IntellijIdea, "2026.2.3")
         }
     }
 }
