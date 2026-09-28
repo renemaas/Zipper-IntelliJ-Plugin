@@ -7,9 +7,13 @@ import com.intellij.openapi.wm.WindowManager;
 
 import javax.swing.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -88,21 +92,14 @@ public class Zipper {
 	}
 
 	public static String[] getIgnoredFiles(String filePath) throws IOException {
-		FileReader fileReader = new FileReader(filePath);
-		BufferedReader bufferedReader = new BufferedReader(fileReader);
-		List<String> lines = new ArrayList<String>();
-		String line;
-		while ((line = bufferedReader.readLine()) != null) {
-			lines.add(line);
-		}
-		bufferedReader.close();
-		return lines.toArray(new String[lines.size()]);
+		List<String> lines = Files.readAllLines(Paths.get(filePath), StandardCharsets.UTF_8);
+		return lines.toArray(new String[0]);
 	}
 
 	public static void addArchiveToIgnoreList(String filePath, String s) throws IOException {
-		FileWriter writer = new FileWriter(filePath, true);
-		writer.write(s + "\n");
-		writer.close();
+		Path path = Paths.get(filePath);
+		Files.createDirectories(path.getParent());
+		Files.write(path, (s + "\n").getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 	}
 
 	public static void addDirectoryToZip(File contentDirectoryObject, ZipOutputStream zipOutputStream, String contentRoot, String[] ignoredFiles) throws IOException {

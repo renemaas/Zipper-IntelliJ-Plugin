@@ -3,6 +3,7 @@ package com.renemaas.intellij.zipper;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.Project;
@@ -13,11 +14,16 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipOutputStream;
 
 public class ZipProjectAction extends AnAction {
+	private static final Logger LOG = Logger.getInstance(ZipProjectAction.class);
+
 	@Override
 	public @NotNull ActionUpdateThread getActionUpdateThread() {
 		return ActionUpdateThread.BGT;
@@ -40,12 +46,14 @@ public class ZipProjectAction extends AnAction {
 		if (archiveName != null) {
 			final long startTime = System.currentTimeMillis();
 			final List<String> contentRoots = ProjectRootManager.getInstance(project).getContentRootUrls();
-			String[] ignoredFiles = new String[0];
+			String[] ignoredFiles;
 			try {
 				Zipper.addArchiveToIgnoreList(ignoreFile, archiveName + Zipper.FILE_EXTENSION);
 				ignoredFiles = Zipper.getIgnoredFiles(ignoreFile);
 			} catch (IOException e1) {
-				Zipper.throwError(project);
+				// Pack anyway, but at least keep the new archive out of itself
+				LOG.warn("Could not update ignore list " + ignoreFile, e1);
+				ignoredFiles = new String[]{archiveName + Zipper.FILE_EXTENSION};
 			}
 
 			final String[] finalIgnoredFiles = ignoredFiles;
@@ -64,19 +72,15 @@ public class ZipProjectAction extends AnAction {
 									final String archivePath = contentDirectory + archiveName + Zipper.FILE_EXTENSION;
 									progressIndicator.setText2(Zipper.LABEL_PACKING + contentDirectory);
 									File contentDirectoryObject = new File(contentDirectory);
-									ZipOutputStream zipOutputStream;
-									File tempFile;
-									tempFile = File.createTempFile(archiveName, Zipper.FILE_EXTENSION);
+									File tempFile = File.createTempFile(archiveName, Zipper.FILE_EXTENSION);
 									tempFile.deleteOnExit();
-									zipOutputStream = new ZipOutputStream(new FileOutputStream(tempFile));
-									Zipper.addDirectoryToZip(contentDirectoryObject, zipOutputStream, contentDirectory, finalIgnoredFiles);
-									zipOutputStream.close();
-									progressIndicator.setText2(Zipper.LABEL_SAVING + archivePath);
-									if (tempFile.renameTo(new File(archivePath))) {
-										archivesCreated++;
-									} else {
-										Zipper.throwError(project);
+									try (ZipOutputStream zipOutputStream = new ZipOutputStream(new FileOutputStream(tempFile))) {
+										Zipper.addDirectoryToZip(contentDirectoryObject, zipOutputStream, contentDirectory, finalIgnoredFiles);
 									}
+									progressIndicator.setText2(Zipper.LABEL_SAVING + archivePath);
+									// Files.move falls back to copy + delete when the temp dir is on another file system
+									Files.move(tempFile.toPath(), Paths.get(archivePath), StandardCopyOption.REPLACE_EXISTING);
+									archivesCreated++;
 								}
 								if (archivesCreated == contentRootsSize) {
 									VirtualFileManager.getInstance().asyncRefresh(null);
