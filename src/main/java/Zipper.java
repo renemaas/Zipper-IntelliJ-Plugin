@@ -4,6 +4,11 @@ import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.InputValidator;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.util.io.FileUtil;
+import org.apache.commons.compress.archivers.zip.ParallelScatterZipCreator;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
+import org.apache.commons.compress.parallel.FileBasedScatterGatherBackingStore;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -12,9 +17,12 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.zip.Deflater;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 public class Zipper {
 
@@ -31,7 +39,7 @@ public class Zipper {
 	public final static String IGNORE_FILE = ".zipper";
 	public final static String NOTIFICATION_GROUP = "Zipper";
 
-	private static final int BUFFER_SIZE = 64 * 1024;
+	private static final int COMPRESSION_LEVEL = 4;
 	private static final String INVALID_NAME_CHARACTERS = "/\\:*?\"<>|";
 	private static final Set<String> COMPRESSED_EXTENSIONS = new HashSet<String>(Arrays.asList(
 			"zip", "jar", "war", "ear", "apk", "gz", "tgz", "bz2", "xz", "7z", "rar", "zst",
@@ -113,43 +121,105 @@ public class Zipper {
 		Files.write(filePath, (s + "\n").getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 	}
 
-	public static void createArchive(Path contentDirectory, Path archiveFile, final Set<String> ignoredFiles, final ProgressIndicator progressIndicator) throws IOException {
-		final Path contentRoot = contentDirectory.toAbsolutePath().normalize();
-		final byte[] buffer = new byte[BUFFER_SIZE];
-		try (final ZipOutputStream zipOutputStream = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(archiveFile), BUFFER_SIZE))) {
-			// Symlinked content stays in the archive, walkFileTree detects link cycles
-			Files.walkFileTree(contentRoot, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
-					progressIndicator.checkCanceled();
-					String fileName = file.getFileName().toString();
-					// Skips broken links, sockets and pipes
-					if (!attributes.isRegularFile() || ignoredFiles.contains(fileName)) {
-						return FileVisitResult.CONTINUE;
-					}
-					// Deflating already compressed data costs CPU and gains nothing
-					zipOutputStream.setLevel(isCompressed(fileName) ? Deflater.NO_COMPRESSION : Deflater.DEFAULT_COMPRESSION);
-					String entryName = contentRoot.relativize(file).toString().replace(File.separatorChar, '/');
-					zipOutputStream.putNextEntry(new ZipEntry(entryName));
-					try (InputStream inputStream = Files.newInputStream(file)) {
-						int length;
-						while ((length = inputStream.read(buffer)) > 0) {
-							progressIndicator.checkCanceled();
-							zipOutputStream.write(buffer, 0, length);
-						}
-					}
-					zipOutputStream.closeEntry();
+	public static void createArchive(Path contentDirectory, Path archiveFile, Set<String> ignoredFiles, final ProgressIndicator progressIndicator) throws IOException {
+		// Walking is cheap compared to compressing, collect first so a failing walk cannot leave threads behind
+		List<Path> files = new ArrayList<Path>();
+		List<ZipArchiveEntry> entries = new ArrayList<ZipArchiveEntry>();
+		collectFiles(contentDirectory.toAbsolutePath().normalize(), ignoredFiles, progressIndicator, files, entries);
+
+		ExecutorService executor = createCompressionExecutor();
+		final Path scatterDirectory = Files.createTempDirectory("zipper");
+		try {
+			ParallelScatterZipCreator creator = new ParallelScatterZipCreator(
+					executor,
+					() -> new FileBasedScatterGatherBackingStore(Files.createTempFile(scatterDirectory, "scatter", ".tmp")),
+					COMPRESSION_LEVEL
+			);
+			for (int i = 0; i < files.size(); i++) {
+				final Path file = files.get(i);
+				creator.addArchiveEntry(entries.get(i), () -> openCancelable(file, progressIndicator));
+			}
+			try (ZipArchiveOutputStream zipOutputStream = new ZipArchiveOutputStream(archiveFile)) {
+				creator.writeTo(zipOutputStream);
+			}
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new InterruptedIOException("Packing was interrupted");
+		} catch (ExecutionException e) {
+			progressIndicator.checkCanceled();
+			Throwable cause = e.getCause();
+			if (cause instanceof UncheckedIOException) {
+				throw ((UncheckedIOException) cause).getCause();
+			}
+			if (cause instanceof IOException) {
+				throw (IOException) cause;
+			}
+			throw new IOException(cause);
+		} finally {
+			executor.shutdownNow();
+			try {
+				executor.awaitTermination(10, TimeUnit.SECONDS);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			FileUtil.delete(scatterDirectory);
+		}
+	}
+
+	private static void collectFiles(final Path contentRoot, final Set<String> ignoredFiles, final ProgressIndicator progressIndicator, final List<Path> files, final List<ZipArchiveEntry> entries) throws IOException {
+		// Symlinked content stays in the archive, walkFileTree detects link cycles
+		Files.walkFileTree(contentRoot, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+				progressIndicator.checkCanceled();
+				String fileName = file.getFileName().toString();
+				// Skips broken links, sockets and pipes
+				if (!attributes.isRegularFile() || ignoredFiles.contains(fileName)) {
 					return FileVisitResult.CONTINUE;
 				}
+				ZipArchiveEntry entry = new ZipArchiveEntry(contentRoot.relativize(file).toString().replace(File.separatorChar, '/'));
+				// Deflating already compressed data costs CPU and gains nothing
+				entry.setMethod(isCompressed(fileName) ? ZipEntry.STORED : ZipEntry.DEFLATED);
+				entry.setTime(attributes.lastModifiedTime().toMillis());
+				files.add(file);
+				entries.add(entry);
+				return FileVisitResult.CONTINUE;
+			}
 
-				@Override
-				public FileVisitResult visitFileFailed(Path file, IOException exception) throws IOException {
-					if (exception instanceof FileSystemLoopException) {
-						return FileVisitResult.CONTINUE;
-					}
-					throw exception;
+			@Override
+			public FileVisitResult visitFileFailed(Path file, IOException exception) throws IOException {
+				if (exception instanceof FileSystemLoopException) {
+					return FileVisitResult.CONTINUE;
 				}
-			});
+				throw exception;
+			}
+		});
+	}
+
+	private static ExecutorService createCompressionExecutor() {
+		// Leave one core to the IDE, single core machines still get one thread
+		int threads = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+		final AtomicInteger threadNumber = new AtomicInteger();
+		return Executors.newFixedThreadPool(threads, runnable -> {
+			Thread thread = new Thread(runnable, "Zipper compression " + threadNumber.incrementAndGet());
+			thread.setDaemon(true);
+			return thread;
+		});
+	}
+
+	private static InputStream openCancelable(Path file, final ProgressIndicator progressIndicator) {
+		try {
+			return new FilterInputStream(Files.newInputStream(file)) {
+				@Override
+				public int read(byte[] buffer, int offset, int length) throws IOException {
+					if (progressIndicator.isCanceled()) {
+						throw new InterruptedIOException("Packing was canceled");
+					}
+					return super.read(buffer, offset, length);
+				}
+			};
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 
