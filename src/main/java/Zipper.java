@@ -1,6 +1,7 @@
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationType;
 import com.intellij.notification.Notifications;
+import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.WindowManager;
 
@@ -102,26 +103,27 @@ public class Zipper {
 		}
 	}
 
-	public static void createArchive(File contentDirectoryObject, File archiveFile, Set<String> ignoredFiles) throws IOException {
+	public static void createArchive(File contentDirectoryObject, File archiveFile, Set<String> ignoredFiles, ProgressIndicator progressIndicator) throws IOException {
 		// Normalized path, the raw content root URL may contain duplicate separators
 		String contentRoot = contentDirectoryObject.getAbsolutePath();
 		if (!contentRoot.endsWith(File.separator)) {
 			contentRoot += File.separator;
 		}
 		try (ZipOutputStream zipOutputStream = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(archiveFile), BUFFER_SIZE))) {
-			addDirectoryToZip(contentDirectoryObject, zipOutputStream, contentRoot, ignoredFiles, new byte[BUFFER_SIZE]);
+			addDirectoryToZip(contentDirectoryObject, zipOutputStream, contentRoot, ignoredFiles, new byte[BUFFER_SIZE], progressIndicator);
 		}
 	}
 
-	private static void addDirectoryToZip(File contentDirectoryObject, ZipOutputStream zipOutputStream, String contentRoot, Set<String> ignoredFiles, byte[] buffer) throws IOException {
+	private static void addDirectoryToZip(File contentDirectoryObject, ZipOutputStream zipOutputStream, String contentRoot, Set<String> ignoredFiles, byte[] buffer, ProgressIndicator progressIndicator) throws IOException {
 		File[] files = contentDirectoryObject.listFiles();
 		if (files == null) {
 			throw new IOException("Cannot read directory " + contentDirectoryObject);
 		}
 
 		for (File file : files) {
+			progressIndicator.checkCanceled();
 			if (file.isDirectory()) {
-				addDirectoryToZip(file, zipOutputStream, contentRoot, ignoredFiles, buffer);
+				addDirectoryToZip(file, zipOutputStream, contentRoot, ignoredFiles, buffer, progressIndicator);
 				continue;
 			}
 			String fileName = file.getName();
@@ -135,6 +137,7 @@ public class Zipper {
 			try (InputStream inputStream = new FileInputStream(file)) {
 				int length;
 				while ((length = inputStream.read(buffer)) > 0) {
+					progressIndicator.checkCanceled();
 					zipOutputStream.write(buffer, 0, length);
 				}
 			}

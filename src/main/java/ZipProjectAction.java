@@ -1,7 +1,9 @@
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.vfs.VirtualFileManager;
@@ -35,45 +37,42 @@ public class ZipProjectAction extends AnAction {
 			}
 
 			final Set<String> finalIgnoredFiles = ignoredFiles;
-			ProgressManager.getInstance().runProcessWithProgressSynchronously(
-					new Runnable() {
-						@Override
-						public void run() {
+			ProgressManager.getInstance().run(new Task.Backgroundable(project, Zipper.TITLE, true) {
+				@Override
+				public void run(@NotNull ProgressIndicator progressIndicator) {
+					try {
+						progressIndicator.setIndeterminate(true);
+						progressIndicator.setText(Zipper.MESSAGE_PACKING_PROJECT);
+						int archivesCreated = 0;
+						int contentRootsSize = contentRoots.size();
+						for (String contentRoot : contentRoots) {
+							final String contentDirectory = Zipper.optimizeContentRootUrl(contentRoot);
+							final String archivePath = contentDirectory + archiveName + Zipper.FILE_EXTENSION;
+							progressIndicator.setText2(Zipper.LABEL_PACKING + contentDirectory);
+							File tempFile = File.createTempFile(archiveName, Zipper.FILE_EXTENSION);
 							try {
-								ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
-								progressIndicator.setIndeterminate(true);
-								progressIndicator.setText(Zipper.MESSAGE_PACKING_PROJECT);
-								int archivesCreated = 0;
-								int contentRootsSize = contentRoots.size();
-								for (String contentRoot : contentRoots) {
-									final String contentDirectory = Zipper.optimizeContentRootUrl(contentRoot);
-									final String archivePath = contentDirectory + archiveName + Zipper.FILE_EXTENSION;
-									progressIndicator.setText2(Zipper.LABEL_PACKING + contentDirectory);
-									File tempFile = File.createTempFile(archiveName, Zipper.FILE_EXTENSION);
-									try {
-										Zipper.createArchive(new File(contentDirectory), tempFile, finalIgnoredFiles);
-										progressIndicator.setText2(Zipper.LABEL_SAVING + archivePath);
-										// Falls back to copy + delete if the temp dir is on another file system
-										Files.move(tempFile.toPath(), new File(archivePath).toPath(), StandardCopyOption.REPLACE_EXISTING);
-										archivesCreated++;
-									} finally {
-										Files.deleteIfExists(tempFile.toPath());
-									}
-								}
-								if (archivesCreated == contentRootsSize) {
-									VirtualFileManager.getInstance().asyncRefresh(null);
-									String execTime = TimeUnit.MILLISECONDS.toSeconds((System.currentTimeMillis() - startTime)) + "s";
-									Zipper.throwSuccess(execTime);
-								}
-							} catch (Exception e1) {
-								Zipper.throwError();
+								Zipper.createArchive(new File(contentDirectory), tempFile, finalIgnoredFiles, progressIndicator);
+								progressIndicator.setText2(Zipper.LABEL_SAVING + archivePath);
+								// Falls back to copy + delete if the temp dir is on another file system
+								Files.move(tempFile.toPath(), new File(archivePath).toPath(), StandardCopyOption.REPLACE_EXISTING);
+								archivesCreated++;
+							} finally {
+								Files.deleteIfExists(tempFile.toPath());
 							}
 						}
-					},
-					Zipper.TITLE,
-					false,
-					project
-			);
+						if (archivesCreated == contentRootsSize) {
+							VirtualFileManager.getInstance().asyncRefresh(null);
+							String execTime = TimeUnit.MILLISECONDS.toSeconds((System.currentTimeMillis() - startTime)) + "s";
+							Zipper.throwSuccess(execTime);
+						}
+					} catch (ProcessCanceledException e1) {
+						// Canceled by the user, the platform expects this to be rethrown
+						throw e1;
+					} catch (Exception e1) {
+						Zipper.throwError();
+					}
+				}
+			});
 		}
 	}
 }
