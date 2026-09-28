@@ -48,3 +48,9 @@ crashlytics.properties
 crashlytics-build.properties
 
 
+
+# Gradle
+.gradle/
+build/
+.intellijPlatform/
+.kotlin/
